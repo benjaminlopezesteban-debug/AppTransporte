@@ -1,0 +1,13 @@
+package cl.duoc.appbelmonte.marca;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class MarcaServicioApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(MarcaServicioApplication.class, args);
+	}
+
+}
