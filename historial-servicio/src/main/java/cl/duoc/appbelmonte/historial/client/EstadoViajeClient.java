@@ -2,36 +2,32 @@ package cl.duoc.appbelmonte.historial.client;
 
 import cl.duoc.appbelmonte.historial.exception.DatosInvalidosException;
 import cl.duoc.appbelmonte.historial.exception.ServicioNoDisponibleException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import feign.FeignException;
+import feign.RetryableException;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
-@Component
-public class EstadoViajeClient {
+@FeignClient(name = "estado-viaje-servicio")
+public interface EstadoViajeClient {
 
-	private final RestClient restClient;
+	@GetMapping("/api/estados-viaje/{id}")
+	EstadoViajeResponse obtenerRemoto(@PathVariable("id") Long id);
 
-	public EstadoViajeClient(RestClient.Builder restClientBuilder,
-			@Value("${servicios.estadoViaje.url}") String urlEstadoViaje) {
-		this.restClient = restClientBuilder.baseUrl(urlEstadoViaje).build();
-	}
-
-	public EstadoViajeResponse obtener(Long id) {
+	default EstadoViajeResponse obtener(Long id) {
 		try {
-			EstadoViajeResponse estado = restClient.get()
-					.uri("/api/estados-viaje/{id}", id)
-					.retrieve()
-					.body(EstadoViajeResponse.class);
+			EstadoViajeResponse estado = obtenerRemoto(id);
 			if (estado == null) {
 				throw new ServicioNoDisponibleException(
 						"El servicio de estados de viaje no está disponible");
 			}
 			return estado;
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("El estado de viaje indicado no existe");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
+			throw new ServicioNoDisponibleException(
+					"El servicio de estados de viaje no está disponible");
+		} catch (FeignException excepcion) {
 			throw new ServicioNoDisponibleException(
 					"El servicio de estados de viaje no está disponible");
 		}

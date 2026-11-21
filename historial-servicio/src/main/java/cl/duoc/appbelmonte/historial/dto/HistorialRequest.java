@@ -8,5 +8,6 @@ public record HistorialRequest(
 		String detalle,
 		@NotNull(message = "El viaje es obligatorio") Long viajeId,
 		Long estadoAnteriorId,
-		@NotNull(message = "El estado nuevo es obligatorio") Long estadoNuevoId) {
+		@NotNull(message = "El estado nuevo es obligatorio") Long estadoNuevoId,
+		Long cambiadoPorId) {
 }

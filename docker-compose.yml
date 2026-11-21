@@ -1,0 +1,235 @@
+x-servicio-comun: &servicio-comun
+  restart: unless-stopped
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  environment: &servicio-entorno
+    DB_URL: "jdbc:mysql://host.docker.internal:3307/appbelmonte?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+    DB_USERNAME: appbelmonte
+    DB_PASSWORD: "Benja19924"
+    EUREKA_URL: "http://eureka-server:8761/eureka/"
+
+services:
+  eureka-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: eureka-server
+    image: appbelmonte/eureka-server:latest
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: gateway
+    image: appbelmonte/gateway:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_URL: "http://eureka-server:8761/eureka/"
+    depends_on:
+      - eureka-server
+
+  rol-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: rol-servicio
+    image: appbelmonte/rol-servicio:latest
+    ports:
+      - "8081:8081"
+    depends_on:
+      - eureka-server
+
+  usuario-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: usuario-servicio
+    image: appbelmonte/usuario-servicio:latest
+    ports:
+      - "8082:8082"
+    depends_on:
+      - eureka-server
+
+  marca-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: marca-servicio
+    image: appbelmonte/marca-servicio:latest
+    ports:
+      - "8083:8083"
+    depends_on:
+      - eureka-server
+
+  modelo-vehiculo-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: modelo-vehiculo-servicio
+    image: appbelmonte/modelo-vehiculo-servicio:latest
+    ports:
+      - "8084:8084"
+    depends_on:
+      - eureka-server
+
+  vehiculo-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: vehiculo-servicio
+    image: appbelmonte/vehiculo-servicio:latest
+    ports:
+      - "8085:8085"
+    depends_on:
+      - eureka-server
+
+  conductor-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: conductor-servicio
+    image: appbelmonte/conductor-servicio:latest
+    ports:
+      - "8086:8086"
+    depends_on:
+      - eureka-server
+
+  region-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: region-servicio
+    image: appbelmonte/region-servicio:latest
+    ports:
+      - "8087:8087"
+    depends_on:
+      - eureka-server
+
+  comuna-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: comuna-servicio
+    image: appbelmonte/comuna-servicio:latest
+    ports:
+      - "8088:8088"
+    depends_on:
+      - eureka-server
+
+  direccion-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: direccion-servicio
+    image: appbelmonte/direccion-servicio:latest
+    ports:
+      - "8089:8089"
+    depends_on:
+      - eureka-server
+
+  pasajero-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: pasajero-servicio
+    image: appbelmonte/pasajero-servicio:latest
+    ports:
+      - "8090:8090"
+    depends_on:
+      - eureka-server
+
+  estado-solicitud-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: estado-solicitud-servicio
+    image: appbelmonte/estado-solicitud-servicio:latest
+    ports:
+      - "8091:8091"
+    depends_on:
+      - eureka-server
+
+  solicitud-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: solicitud-servicio
+    image: appbelmonte/solicitud-servicio:latest
+    ports:
+      - "8092:8092"
+    depends_on:
+      - eureka-server
+
+  estado-viaje-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: estado-viaje-servicio
+    image: appbelmonte/estado-viaje-servicio:latest
+    ports:
+      - "8093:8093"
+    depends_on:
+      - eureka-server
+
+  viaje-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: viaje-servicio
+    image: appbelmonte/viaje-servicio:latest
+    ports:
+      - "8094:8094"
+    depends_on:
+      - eureka-server
+
+  historial-servicio:
+    <<: *servicio-comun
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: historial-servicio
+    image: appbelmonte/historial-servicio:latest
+    ports:
+      - "8095:8095"
+    depends_on:
+      - eureka-server
+
+networks:
+  default:
+    name: appbelmonte-net

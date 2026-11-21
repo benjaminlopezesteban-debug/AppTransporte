@@ -4,5 +4,6 @@ import jakarta.validation.constraints.NotNull;
 
 public record AsignacionRequest(
 		@NotNull(message = "La solicitud es obligatoria") Long solicitudId,
-		@NotNull(message = "El conductor es obligatorio") Long conductorId) {
+		@NotNull(message = "El conductor es obligatorio") Long conductorId,
+		@NotNull(message = "El usuario que asigna es obligatorio") Long asignadoPorId) {
 }

@@ -7,7 +7,6 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,7 +37,6 @@ public class ModeloVehiculoController {
 	}
 
 	@PostMapping
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public ResponseEntity<ModeloVehiculoResponse> crear(
 			@Valid @RequestBody ModeloVehiculoRequest solicitud) {
 		return ResponseEntity.status(HttpStatus.CREATED)
@@ -46,7 +44,6 @@ public class ModeloVehiculoController {
 	}
 
 	@PutMapping("/{id}")
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public ModeloVehiculoResponse actualizar(@PathVariable Long id,
 			@Valid @RequestBody ModeloVehiculoRequest solicitud) {
 		return modeloVehiculoService.actualizar(id, solicitud);

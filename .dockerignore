@@ -1,0 +1,7 @@
+**/target
+**/.git
+**/.idea
+**/*.iml
+docs
+plan_backend_appbelmonte.md
+README.md

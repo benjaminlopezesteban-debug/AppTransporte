@@ -4,55 +4,51 @@ import cl.duoc.appbelmonte.solicitud.dto.PasajeroDatos;
 import cl.duoc.appbelmonte.solicitud.dto.PasajeroResponse;
 import cl.duoc.appbelmonte.solicitud.exception.DatosInvalidosException;
 import cl.duoc.appbelmonte.solicitud.exception.ServicioNoDisponibleException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import feign.FeignException;
+import feign.RetryableException;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
-@Component
-public class PasajeroClient {
+@FeignClient(name = "pasajero-servicio")
+public interface PasajeroClient {
 
-	private final RestClient restClient;
+	@PostMapping("/api/pasajeros")
+	PasajeroResponse crearRemoto(@RequestBody PasajeroDatos datos);
 
-	public PasajeroClient(RestClient.Builder restClientBuilder,
-			@Value("${servicios.pasajero.url}") String urlPasajero) {
-		this.restClient = restClientBuilder.baseUrl(urlPasajero).build();
-	}
+	@GetMapping("/api/pasajeros/{id}")
+	PasajeroResponse obtenerRemoto(@PathVariable("id") Long id);
 
-	public PasajeroResponse crear(PasajeroDatos datos) {
+	default PasajeroResponse crear(PasajeroDatos datos) {
 		try {
-			PasajeroResponse pasajero = restClient.post()
-					.uri("/api/pasajeros")
-					.body(datos)
-					.retrieve()
-					.body(PasajeroResponse.class);
+			PasajeroResponse pasajero = crearRemoto(datos);
 			if (pasajero == null) {
 				throw new ServicioNoDisponibleException(
 						"El servicio de pasajeros no está disponible");
 			}
 			return pasajero;
-		} catch (HttpClientErrorException excepcion) {
-			throw new DatosInvalidosException("No se pudo crear el pasajero");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
 			throw new ServicioNoDisponibleException("El servicio de pasajeros no está disponible");
+		} catch (FeignException excepcion) {
+			throw new DatosInvalidosException("No se pudo crear el pasajero");
 		}
 	}
 
-	public PasajeroResponse obtener(Long id) {
+	default PasajeroResponse obtener(Long id) {
 		try {
-			PasajeroResponse pasajero = restClient.get()
-					.uri("/api/pasajeros/{id}", id)
-					.retrieve()
-					.body(PasajeroResponse.class);
+			PasajeroResponse pasajero = obtenerRemoto(id);
 			if (pasajero == null) {
 				throw new ServicioNoDisponibleException(
 						"El servicio de pasajeros no está disponible");
 			}
 			return pasajero;
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("El pasajero indicado no existe");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
+			throw new ServicioNoDisponibleException("El servicio de pasajeros no está disponible");
+		} catch (FeignException excepcion) {
 			throw new ServicioNoDisponibleException("El servicio de pasajeros no está disponible");
 		}
 	}

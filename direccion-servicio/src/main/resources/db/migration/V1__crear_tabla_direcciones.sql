@@ -1,0 +1,8 @@
+CREATE TABLE direcciones (
+	id BIGINT NOT NULL AUTO_INCREMENT,
+	calle VARCHAR(255) NOT NULL,
+	latitud DOUBLE NOT NULL,
+	longitud DOUBLE NOT NULL,
+	comuna_id BIGINT NOT NULL,
+	PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -2,25 +2,24 @@
 
 Microservicio base de AppBelmonte. Se usa como referencia para crear los demás
 servicios copiando esta carpeta y renombrando paquete, clase principal, puerto y
-base de datos.
+tabla.
 
-Arranca en el puerto `8099` y usa la base H2 en memoria `plantilla`.
+Arranca en el puerto `8099` y usa MySQL con la base `appbelmonte_plantilla`.
+Las migraciones Flyway crean la tabla `usuarios` y cargan seis usuarios de
+ejemplo.
 
 ## Contenido reutilizable (infraestructura)
 
-- `config/SecurityConfig.java`: seguridad sin estado, `/api/auth/**` público y
-  `@EnableMethodSecurity`.
-- `config/JwtAuthenticationFilter.java`: valida el token y arma la autenticación
-  con el id del usuario y el rol.
-- `config/JwtService.java`: solo valida y parsea el token. Todos los servicios lo
-  usan.
-- `config/RestAuthenticationEntryPoint.java`: respuesta 401 en JSON.
-- `config/RestAccessDeniedHandler.java`: respuesta 403 en JSON.
-- `config/RestClientConfig.java`: `RestClient.Builder` que reenvía el encabezado
-  `Authorization` de la petición actual.
 - `dto/ErrorResponse.java`: formato de error común.
-- `exception/`: excepciones de negocio y manejador global (400, 401, 403, 404,
-  409, 500 y 503).
+- `exception/`: excepciones de negocio y manejador global (400, 401, 404, 409,
+  500 y 503).
+- No hay configuración de seguridad, filtros JWT ni propagación de token.
+- `pom.xml`: MySQL, Flyway, Eureka y Spring Cloud.
+- `application.properties`: datasource, Flyway, Eureka y validación de esquema.
+- `db/migration/V1__crear_tabla_usuarios.sql` y
+  `V2__datos_prueba_usuarios.sql`: ejemplo de migraciones.
+- Si el servicio usa clientes internos, agregar `@EnableFeignClients` y una
+  interfaz `@FeignClient`; no crear `RestClientConfig`.
 
 ## Contenido de ejemplo (solo referencia)
 
@@ -32,8 +31,10 @@ construcción completa. No forma parte de la infraestructura reutilizable:
 - `service/UsuarioService.java`
 - `controller/AuthController.java`
 - `dto/LoginRequest.java`, `dto/LoginResponse.java`, `dto/RegistroRequest.java`
-- `config/DatosPruebaConfig.java`
-- `config/JwtEmisor.java` (genera el token; solo lo usa el servicio de usuario)
+- `db/migration/V1__crear_tabla_usuarios.sql`
+- `db/migration/V2__datos_prueba_usuarios.sql`
+
+El login solo valida correo y contraseña. No genera token.
 
 ## Cómo crear un servicio nuevo
 
@@ -50,7 +51,8 @@ construcción completa. No forma parte de la infraestructura reutilizable:
    ```
 
 3. En `<nombre>-servicio/pom.xml`, cambiar `artifactId`, `name` y
-   `description`.
+   `description`. Conservar las dependencias de MySQL, Flyway, Eureka y Spring
+   Cloud.
 
 4. Renombrar el paquete:
 
@@ -64,33 +66,56 @@ construcción completa. No forma parte de la infraestructura reutilizable:
    Reemplazar `cl.duoc.appbelmonte.plantilla` por
    `cl.duoc.appbelmonte.<paquete>` en todos los archivos Java.
 
-5. Renombrar `PlantillaServicioApplication.java` y
-   `PlantillaServicioApplicationTests.java` con el nombre del servicio y
-   actualizar sus referencias.
+5. Renombrar `PlantillaServicioApplication.java` con el nombre del servicio y
+   actualizar sus referencias. Si usa Feign, agregar `@EnableFeignClients`.
 
-6. En `src/main/resources/application.properties`, ajustar
-   `spring.application.name`, `server.port` y el nombre de la base H2.
+6. En `src/main/resources/application.properties`, ajustar:
+
+   - `spring.application.name`.
+   - `server.port`.
+   - `spring.flyway.table` con un nombre único por servicio.
+   - `DB_URL` si el servicio usa otra base; por defecto usa `appbelmonte`.
 
 7. Eliminar el ejemplo de Usuario si el servicio no lo necesita (ver lista
-   anterior). Conservar siempre `config/` de seguridad y JWT, `dto/ErrorResponse`
-   y `exception/`.
+   anterior). Conservar siempre `dto/ErrorResponse`, `exception/` y la
+   configuración de Flyway.
 
-8. Dejar solo las propiedades `servicios.*.url` que el servicio realmente use.
+8. Crear las migraciones en `src/main/resources/db/migration`:
+
+   - `V1__crear_tabla_<tabla>.sql`.
+   - `V2__datos_prueba_<tabla>.sql` si hay seeds.
+
+   No usar `ddl-auto=update`. El esquema lo controla Flyway y Hibernate solo
+   valida.
 
 9. Crear las clases de negocio en `model`, `repository`, `service`, `controller`
-   y `dto`, y los clientes REST en `client`.
+   y `dto`, y los clientes Feign en `client`.
 
-10. Compilar:
+10. Si se usan clientes internos:
+
+    - Agregar `spring-cloud-starter-openfeign` y
+      `spring-cloud-starter-loadbalancer` al `pom.xml`.
+    - Agregar `@EnableFeignClients` en la clase principal.
+    - Declarar interfaces `@FeignClient(name = "<servicio>")`.
+    - Traducir `FeignException` y `RetryableException` a las excepciones de
+      negocio.
+
+11. Compilar y probar:
 
     ```bash
     ./mvnw -q -DskipTests package
+    ./mvnw test
     ```
 
 ## Notas
 
-- La clave `jwt.secret` debe ser idéntica en todos los servicios.
+- No hay autenticación ni autorización. Todos los endpoints son públicos.
+- La identidad se envía en el body o en la ruta, no en headers.
 - No se usan relaciones JPA ni claves foráneas entre servicios; solo se guarda el
   id de la entidad referenciada.
-- Las llamadas entre servicios usan `RestClient` y reenvían el token.
+- Las llamadas entre servicios usan Feign con Eureka, sin token.
 - Si el servicio llamado no responde, lanzar `ServicioNoDisponibleException`
   para devolver 503.
+- `spring.flyway.baseline-version=0` es obligatorio para no omitir `V1`.
+- La primera ejecución debe hacerse sobre una base limpia. `baseline-on-migrate`
+  no adopta tablas existentes ni corrige el esquema.

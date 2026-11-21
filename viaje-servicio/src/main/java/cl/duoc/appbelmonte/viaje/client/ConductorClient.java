@@ -3,36 +3,32 @@ package cl.duoc.appbelmonte.viaje.client;
 import cl.duoc.appbelmonte.viaje.dto.ConductorResponse;
 import cl.duoc.appbelmonte.viaje.exception.DatosInvalidosException;
 import cl.duoc.appbelmonte.viaje.exception.ServicioNoDisponibleException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import feign.FeignException;
+import feign.RetryableException;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
-@Component
-public class ConductorClient {
+@FeignClient(name = "conductor-servicio")
+public interface ConductorClient {
 
-	private final RestClient restClient;
+	@GetMapping("/api/conductores/{id}")
+	ConductorResponse obtenerRemoto(@PathVariable("id") Long id);
 
-	public ConductorClient(RestClient.Builder restClientBuilder,
-			@Value("${servicios.conductor.url}") String urlConductor) {
-		this.restClient = restClientBuilder.baseUrl(urlConductor).build();
-	}
-
-	public ConductorResponse obtener(Long id) {
+	default ConductorResponse obtener(Long id) {
 		try {
-			ConductorResponse conductor = restClient.get()
-					.uri("/api/conductores/{id}", id)
-					.retrieve()
-					.body(ConductorResponse.class);
+			ConductorResponse conductor = obtenerRemoto(id);
 			if (conductor == null) {
 				throw new ServicioNoDisponibleException(
 						"El servicio de conductores no está disponible");
 			}
 			return conductor;
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("El conductor indicado no existe");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
+			throw new ServicioNoDisponibleException(
+					"El servicio de conductores no está disponible");
+		} catch (FeignException excepcion) {
 			throw new ServicioNoDisponibleException(
 					"El servicio de conductores no está disponible");
 		}

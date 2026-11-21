@@ -8,8 +8,6 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,36 +26,26 @@ public class ConductorController {
 		this.conductorService = conductorService;
 	}
 
-	@PostMapping
-	@PreAuthorize("hasRole('CONDUCTOR')")
-	public ResponseEntity<ConductorResponse> crear(@AuthenticationPrincipal Long conductorId,
+	@PostMapping("/{usuarioId}")
+	public ResponseEntity<ConductorResponse> crear(@PathVariable Long usuarioId,
 			@Valid @RequestBody ConductorRequest solicitud) {
 		return ResponseEntity.status(HttpStatus.CREATED)
-				.body(conductorService.crear(conductorId, solicitud));
-	}
-
-	@GetMapping("/yo")
-	@PreAuthorize("hasRole('CONDUCTOR')")
-	public ConductorResponse obtenerYo(@AuthenticationPrincipal Long conductorId) {
-		return conductorService.obtenerYo(conductorId);
-	}
-
-	@PutMapping("/yo/disponibilidad")
-	@PreAuthorize("hasRole('CONDUCTOR')")
-	public ConductorResponse cambiarDisponibilidad(@AuthenticationPrincipal Long conductorId,
-			@Valid @RequestBody DisponibilidadRequest solicitud) {
-		return conductorService.cambiarDisponibilidad(conductorId, solicitud.disponible());
+				.body(conductorService.crear(usuarioId, solicitud));
 	}
 
 	@GetMapping("/disponibles")
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public List<ConductorResponse> listarDisponibles() {
 		return conductorService.listarDisponibles();
 	}
 
 	@GetMapping("/{id}")
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public ConductorResponse obtener(@PathVariable Long id) {
 		return conductorService.obtener(id);
+	}
+
+	@PutMapping("/{id}/disponibilidad")
+	public ConductorResponse cambiarDisponibilidad(@PathVariable Long id,
+			@Valid @RequestBody DisponibilidadRequest solicitud) {
+		return conductorService.cambiarDisponibilidad(id, solicitud.disponible());
 	}
 }

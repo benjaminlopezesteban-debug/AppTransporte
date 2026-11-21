@@ -15,5 +15,6 @@ public record SolicitudRequest(
 		@NotNull(message = "La dirección de origen es obligatoria")
 		@Valid DireccionDatos origen,
 		@NotNull(message = "La dirección de destino es obligatoria")
-		@Valid DireccionDatos destino) {
+		@Valid DireccionDatos destino,
+		@NotNull(message = "El solicitante es obligatorio") Long solicitanteId) {
 }

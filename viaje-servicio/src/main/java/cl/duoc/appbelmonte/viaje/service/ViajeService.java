@@ -25,7 +25,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,7 +77,8 @@ public class ViajeService {
 		Viaje guardado = viajeRepository.save(viaje);
 
 		SolicitudResponse solicitudAsignada = solicitudClient.asignar(solicitud.solicitudId());
-		registrarHistorial(guardado.getId(), null, ESTADO_ASIGNADO, "Viaje asignado");
+		registrarHistorial(guardado.getId(), null, ESTADO_ASIGNADO, "Viaje asignado",
+				asignadoPorId);
 		return aResponse(guardado, solicitudAsignada);
 	}
 
@@ -101,28 +101,27 @@ public class ViajeService {
 		viaje.setFechaAsignacion(LocalDateTime.now().withNano(0));
 		Viaje guardado = viajeRepository.save(viaje);
 		registrarHistorial(guardado.getId(), ESTADO_ASIGNADO, ESTADO_ASIGNADO,
-				"Conductor reasignado");
+				"Conductor reasignado", asignadoPorId);
 		return aResponse(guardado, solicitudClient.obtener(guardado.getSolicitudId()));
 	}
 
 	@Transactional
-	public ViajeResponse iniciar(Long id, Long conductorId) {
+	public ViajeResponse iniciar(Long id) {
 		Viaje viaje = buscar(id);
-		verificarConductor(viaje, conductorId);
 		if (!ESTADO_ASIGNADO.equals(viaje.getEstadoId())) {
 			throw new ReglaNegocioException("Solo se puede iniciar un viaje asignado");
 		}
 		viaje.setEstadoId(ESTADO_EN_CURSO);
 		viaje.setHoraInicioReal(LocalDateTime.now().withNano(0));
 		Viaje guardado = viajeRepository.save(viaje);
-		registrarHistorial(guardado.getId(), ESTADO_ASIGNADO, ESTADO_EN_CURSO, "Viaje iniciado");
+		registrarHistorial(guardado.getId(), ESTADO_ASIGNADO, ESTADO_EN_CURSO, "Viaje iniciado",
+				guardado.getConductorId());
 		return aResponse(guardado, solicitudClient.obtener(guardado.getSolicitudId()));
 	}
 
 	@Transactional
-	public ViajeResponse finalizar(Long id, Long conductorId) {
+	public ViajeResponse finalizar(Long id) {
 		Viaje viaje = buscar(id);
-		verificarConductor(viaje, conductorId);
 		if (!ESTADO_EN_CURSO.equals(viaje.getEstadoId())) {
 			throw new ReglaNegocioException("Solo se puede finalizar un viaje en curso");
 		}
@@ -130,7 +129,7 @@ public class ViajeService {
 		viaje.setHoraFinReal(LocalDateTime.now().withNano(0));
 		Viaje guardado = viajeRepository.save(viaje);
 		registrarHistorial(guardado.getId(), ESTADO_EN_CURSO, ESTADO_FINALIZADO,
-				"Viaje finalizado");
+				"Viaje finalizado", guardado.getConductorId());
 		return aResponse(guardado, solicitudClient.obtener(guardado.getSolicitudId()));
 	}
 
@@ -163,16 +162,9 @@ public class ViajeService {
 	}
 
 	@Transactional(readOnly = true)
-	public ViajeResponse obtener(Long id, Long usuarioId, String rol) {
+	public ViajeResponse obtener(Long id) {
 		Viaje viaje = buscar(id);
-		if ("CONDUCTOR".equals(rol) && !viaje.getConductorId().equals(usuarioId)) {
-			throw new AccessDeniedException("No puede ver un viaje que no le pertenece");
-		}
-		SolicitudResponse solicitud = solicitudClient.obtener(viaje.getSolicitudId());
-		if ("SOLICITANTE".equals(rol) && !solicitud.solicitanteId().equals(usuarioId)) {
-			throw new AccessDeniedException("No puede ver un viaje que no le pertenece");
-		}
-		return aResponse(viaje, solicitud);
+		return aResponse(viaje, solicitudClient.obtener(viaje.getSolicitudId()));
 	}
 
 	private List<ViajeResponse> aResponses(List<Viaje> viajes) {
@@ -207,10 +199,10 @@ public class ViajeService {
 	}
 
 	private void registrarHistorial(Long viajeId, Long estadoAnteriorId, Long estadoNuevoId,
-			String detalle) {
+			String detalle, Long cambiadoPorId) {
 		try {
 			historialClient.registrar(new HistorialRequest(LocalDateTime.now().withNano(0),
-					detalle, viajeId, estadoAnteriorId, estadoNuevoId));
+					detalle, viajeId, estadoAnteriorId, estadoNuevoId, cambiadoPorId));
 		} catch (DatosInvalidosException | ServicioNoDisponibleException excepcion) {
 			log.warn("No se pudo registrar el historial del viaje {}: {}", viajeId,
 					excepcion.getMessage());
@@ -221,12 +213,5 @@ public class ViajeService {
 		return viajeRepository.findById(id)
 				.orElseThrow(() -> new RecursoNoEncontradoException(
 						"El viaje indicado no existe"));
-	}
-
-	private void verificarConductor(Viaje viaje, Long conductorId) {
-		if (!viaje.getConductorId().equals(conductorId)) {
-			throw new AccessDeniedException(
-					"Solo el conductor del viaje puede realizar esta acción");
-		}
 	}
 }

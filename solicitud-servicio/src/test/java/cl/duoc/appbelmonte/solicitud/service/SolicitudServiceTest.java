@@ -31,7 +31,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class SolicitudServiceTest {
@@ -95,20 +94,10 @@ class SolicitudServiceTest {
 				.thenAnswer(invocacion -> invocacion.getArgument(0));
 		stubRespuesta(3L, "CANCELADA");
 
-		SolicitudResponse respuesta = solicitudService.cancelar(1L, 2L);
+		SolicitudResponse respuesta = solicitudService.cancelar(1L);
 
 		assertThat(respuesta.estadoId()).isEqualTo(3L);
 		assertThat(respuesta.estadoNombre()).isEqualTo("CANCELADA");
-	}
-
-	@Test
-	void cancelarSolicitudAjenaLanzaAccesoDenegado() {
-		when(solicitudRepository.findById(1L))
-				.thenReturn(Optional.of(solicitud(1L, 2L, 1L)));
-
-		assertThatThrownBy(() -> solicitudService.cancelar(1L, 3L))
-				.isInstanceOf(AccessDeniedException.class);
-		verify(solicitudRepository, never()).save(any());
 	}
 
 	@Test
@@ -116,7 +105,7 @@ class SolicitudServiceTest {
 		when(solicitudRepository.findById(1L))
 				.thenReturn(Optional.of(solicitud(1L, 2L, 2L)));
 
-		assertThatThrownBy(() -> solicitudService.cancelar(1L, 2L))
+		assertThatThrownBy(() -> solicitudService.cancelar(1L))
 				.isInstanceOf(ReglaNegocioException.class);
 		verify(solicitudRepository, never()).save(any());
 	}
@@ -142,15 +131,6 @@ class SolicitudServiceTest {
 
 		assertThatThrownBy(() -> solicitudService.asignar(1L))
 				.isInstanceOf(ReglaNegocioException.class);
-	}
-
-	@Test
-	void obtenerSolicitudAjenaComoSolicitanteLanzaAccesoDenegado() {
-		when(solicitudRepository.findById(1L))
-				.thenReturn(Optional.of(solicitud(1L, 2L, 1L)));
-
-		assertThatThrownBy(() -> solicitudService.obtener(1L, 3L, "SOLICITANTE"))
-				.isInstanceOf(AccessDeniedException.class);
 	}
 
 	@Test
@@ -185,7 +165,7 @@ class SolicitudServiceTest {
 		return new SolicitudRequest(LocalDate.of(2026, 11, 12), LocalTime.of(10, 30),
 				"LA 999", "Prueba", new PasajeroDatos("Pasajero Prueba", "123"),
 				new DireccionDatos("Calle Origen", -33.4489, -70.6693, 1L),
-				new DireccionDatos("Calle Destino", -33.4314, -70.6093, 2L));
+				new DireccionDatos("Calle Destino", -33.4314, -70.6093, 2L), 2L);
 	}
 
 	private SolicitudTraslado solicitud(Long id, Long solicitanteId, Long estadoId) {

@@ -1,0 +1,4 @@
+INSERT INTO roles (id, nombre) VALUES
+	(1, 'ADMINISTRADOR'),
+	(2, 'SOLICITANTE'),
+	(3, 'CONDUCTOR');

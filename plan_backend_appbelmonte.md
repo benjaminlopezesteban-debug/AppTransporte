@@ -10,6 +10,10 @@ El proyecto es un MVP educativo (app Android + backend) que centraliza el ciclo 
 
 Este plan cubre solo el **backend**. Usa arquitectura de **microservicios**: cada entidad del modelo de datos (normalizado en tercera forma normal) es un servicio Spring Boot independiente, 15 en total. La app Android (Kotlin, Jetpack Compose, MVVM, Retrofit, Room) se hará después y consumirá estos servicios.
 
+> **Nota histórica (2026-11-14):** las secciones sobre JWT, Spring Security, roles, headers de identidad y `@PreAuthorize` quedaron superadas. La Fase 1 actual no usa autenticación ni autorización: solo el login valida credenciales y la identidad se envía en el body o en la ruta. Ver `docs/Sumario_Final.md`.
+>
+> **Nota de actualización (2026-11-14):** la Fase 2 también quedó aplicada. MySQL, Flyway, Eureka, gateway, Feign y Docker Compose reemplazan H2, `RestClient` y las URLs `servicios.*.url`. Cada servicio mantiene su propia tabla de historial Flyway dentro de la base compartida `appbelmonte`. Ver `docs/Sumario_Final.md`.
+
 ## 2. Reglas para el agente
 
 1. Mantener todo simple. No agregar capas, patrones, entidades ni librerías que este plan no pida.
@@ -31,19 +35,20 @@ Este plan cubre solo el **backend**. Usa arquitectura de **microservicios**: cad
 | Spring Boot | 4.1.2 |
 | Java | 21 |
 | Gestor | Maven, un proyecto independiente por servicio (no multimódulo) |
-| Base de datos | H2 en memoria, una por servicio |
+| Base de datos | MySQL XAMPP, base compartida `appbelmonte` con historial Flyway por servicio |
 
 ### Dependencias de cada servicio (`pom.xml`)
 
 - `spring-boot-starter-webmvc`
 - `spring-boot-starter-data-jpa`
 - `spring-boot-starter-validation`
-- `spring-boot-starter-security`
-- `spring-boot-h2console` y `h2` (runtime)
+- `spring-boot-starter-flyway` y `flyway-mysql`
+- `mysql-connector-j` (runtime)
+- `spring-cloud-starter-netflix-eureka-client`
+- `spring-cloud-starter-openfeign` y `spring-cloud-starter-loadbalancer` solo en servicios con clientes
 - `lombok` (opcional)
-- `jjwt` (api, impl y jackson): en `usuario-servicio` para generar el token; en los demás para validarlo
 - Dependencias de prueba `*-test`
-- Sin `spring-boot-devtools`
+- Sin `spring-boot-devtools`, sin H2 y sin Spring Security/JJWT
 
 El proyecto `backend` ya creado se usa como base de la plantilla (fase 0).
 
@@ -78,7 +83,8 @@ appbelmonte-backend/
 ├── usuario-servicio/
 ├── ...                        (un directorio por servicio de la tabla)
 ├── historial-servicio/
-├── gateway/                   (recomendado, fase 12)
+├── eureka-server/             (fase 2)
+├── gateway/                   (aplicado, fase 12)
 ├── README.md
 └── coleccion-postman.json
 ```
@@ -202,11 +208,12 @@ Viaje 1─N HistorialEstado
 
 ### Llamadas entre servicios
 
-- Se usa `RestClient` de Spring, con la dirección del otro servicio en `application.properties` (por ejemplo `servicios.solicitud.url=http://localhost:8092`).
-- Se reenvía el encabezado `Authorization` recibido, para que el servicio llamado valide el mismo token.
-- Sin Eureka, Feign, broker de mensajes ni Config Server.
+- Se usa Feign con descubrimiento de Eureka y `spring-cloud-starter-loadbalancer`.
+- Los clientes declaran `@FeignClient(name = "<servicio>")` y las rutas `/api/...`.
+- No se reenvía `Authorization` porque no existe token.
+- Los servicios se registran en Eureka (`8761`); el gateway (`8080`) enruta con `lb://`.
 - Si el servicio llamado no responde, se devuelve error 503 con mensaje claro.
-- Si una consulta a otro servicio indica que el id no existe, se devuelve 404 o 400 según el caso (sección 8).
+- Si una consulta a otro servicio indica que el id no existe, se devuelve 400 según el caso (sección 8).
 
 ### Crear una solicitud (operación que cruza servicios)
 
@@ -380,7 +387,7 @@ Se construye en orden de dependencia: primero los servicios que no llaman a nadi
 
 ### Fase 0. Repositorio y plantilla
 - Verificar la estructura de carpetas de la sección 4, si no esta creada, desarrolla la estructura.
-- Analizar el microservicio **usuario-servicio** y tomarlo como una `plantilla-servicio` con: `pom.xml` según la sección 3, configuración de seguridad y filtro de validación del JWT, `ErrorResponse`, manejador global de errores, configuración de `RestClient` que reenvía el token, y `application.properties` con las propiedades `jwt.secret` y las direcciones de los servicios.
+- Analizar el microservicio **usuario-servicio** y tomarlo como una `plantilla-servicio` con: `pom.xml` según la sección 3, `ErrorResponse`, manejador global de errores, configuración de MySQL/Flyway, Eureka y `application.properties` con datasource y tabla de historial Flyway.
 - La plantilla tiene la construcción completa del microservicio, la usaras de ejemplo para poder realizar la construcción de los demás. 
 - Para cada servicio: copiar la plantilla, renombrar el directorio, el paquete, la clase principal y el puerto.
 - **Listo cuando:** la plantilla arranca sin errores y se puede copiar a un servicio nuevo en pocos pasos.
@@ -391,9 +398,10 @@ Se construye en orden de dependencia: primero los servicios que no llaman a nadi
 - **Listo cuando:** `GET /api/roles` responde sin token con los 3 roles.
 
 ### Fase 2. usuario-servicio
-- Entidad, registro, login con BCrypt y generación del JWT (con el nombre del rol obtenido de `rol-servicio`).
+- Entidad, registro y login sin token (con el nombre del rol obtenido de `rol-servicio`).
+- Persistencia en MySQL y seeds mediante Flyway.
 - Cargar los usuarios de prueba (sección 10).
-- **Listo cuando:** el login con cada usuario de prueba devuelve un token con el rol correcto.
+- **Listo cuando:** el login con cada usuario de prueba devuelve id, rolId, rolNombre y nombre.
 
 ### Fase 3. region-servicio y comuna-servicio
 - Patrón de catálogo; `comuna-servicio` valida la región y la incluye en sus respuestas.
@@ -401,7 +409,7 @@ Se construye en orden de dependencia: primero los servicios que no llaman a nadi
 
 ### Fase 4. direccion-servicio y pasajero-servicio
 - Rutas de la sección 8. `direccion-servicio` valida la comuna.
-- **Listo cuando:** se crea una dirección con el token de un solicitante y se consulta con su comuna y región.
+- **Listo cuando:** se crea una dirección con `comunaId` y se consulta con su comuna y región.
 
 ### Fase 5. marca-servicio, modelo-vehiculo-servicio y vehiculo-servicio
 - Patrón de catálogo para marca y modelo; `vehiculo-servicio` con sus propias rutas.
@@ -435,14 +443,15 @@ Se construye en orden de dependencia: primero los servicios que no llaman a nadi
 - `README.md` en la raíz con: servicios y puertos, orden para iniciarlos (el de las fases), usuarios de prueba (ficticios) y la lista de rutas.
 - **Listo cuando:** las pruebas pasan y el flujo completo funciona desde Postman.
 
-### Fase 12. Puerta de entrada única (recomendada)
-- Con 15 servicios, un servicio `gateway` en el puerto 8080 que dirija cada ruta `/api/...` al servicio correspondiente simplifica la app Android, que usaría una sola dirección base. Las rutas del contrato no cambian.
-- Verificar primero que la librería sea compatible con Spring Boot 4.1.2. Si no lo es, la app usará una dirección base por servicio.
-- **Listo cuando:** todas las rutas de la sección 8 responden por el puerto 8080.
+### Fase 12. Puerta de entrada única (aplicada)
+- El módulo `gateway` escucha en el puerto 8080 y dirige cada ruta `/api/...` al servicio correspondiente con `lb://` y Eureka.
+- Usa `spring-cloud-starter-gateway-server-webflux`, compatible con Spring Boot 4.1.2.
+- La app Android usa una sola dirección base: `http://localhost:8080`.
+- **Listo:** todas las rutas de la sección 8 responden por el puerto 8080.
 
 ## 10. Datos de prueba ficticios
 
-Cada servicio carga sus datos al iniciar, con ids explícitos. Todos los nombres, correos, teléfonos y patentes son inventados. Las contraseñas de prueba se guardan cifradas.
+Cada servicio carga sus datos con Flyway (`V2__datos_prueba_<tabla>.sql`), con ids explícitos. Todos los nombres, correos, teléfonos y patentes son inventados. Las contraseñas de prueba se guardan en texto plano (`clave123`) porque no hay autenticación real.
 
 | Servicio | Datos |
 |---|---|
@@ -495,4 +504,4 @@ Casos de error que deben fallar:
 - App Android (se hará después de validar estos servicios).
 - Tiempo real con WebSockets: bastan las consultas REST al abrir o refrescar la pantalla.
 - Integración con mapas en el backend: la navegación se resuelve en la app con Intents.
-- Descubrimiento de servicios (Eureka), mensajería, Docker y bases de datos externas.
+- Mensajería y Config Server. Eureka, Docker y MySQL ya fueron incorporados en la Fase 2.

@@ -2,8 +2,8 @@ package cl.duoc.appbelmonte.usuario.controller;
 
 import cl.duoc.appbelmonte.usuario.dto.UsuarioResponse;
 import cl.duoc.appbelmonte.usuario.service.UsuarioService;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,8 +17,8 @@ public class UsuarioController {
 		this.usuarioService = usuarioService;
 	}
 
-	@GetMapping("/yo")
-	public UsuarioResponse obtenerYo(@AuthenticationPrincipal Long usuarioId) {
-		return usuarioService.obtenerYo(usuarioId);
+	@GetMapping("/{id}")
+	public UsuarioResponse obtener(@PathVariable Long id) {
+		return usuarioService.obtener(id);
 	}
 }

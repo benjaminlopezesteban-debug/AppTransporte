@@ -24,7 +24,7 @@ public class HistorialService {
 	}
 
 	@Transactional
-	public HistorialResponse registrar(HistorialRequest solicitud, Long cambiadoPorId) {
+	public HistorialResponse registrar(HistorialRequest solicitud) {
 		estadoViajeClient.obtener(solicitud.estadoNuevoId());
 		if (solicitud.estadoAnteriorId() != null) {
 			estadoViajeClient.obtener(solicitud.estadoAnteriorId());
@@ -38,7 +38,7 @@ public class HistorialService {
 		historial.setViajeId(solicitud.viajeId());
 		historial.setEstadoAnteriorId(solicitud.estadoAnteriorId());
 		historial.setEstadoNuevoId(solicitud.estadoNuevoId());
-		historial.setCambiadoPorId(cambiadoPorId);
+		historial.setCambiadoPorId(solicitud.cambiadoPorId());
 		return aResponse(historialRepository.save(historial));
 	}
 

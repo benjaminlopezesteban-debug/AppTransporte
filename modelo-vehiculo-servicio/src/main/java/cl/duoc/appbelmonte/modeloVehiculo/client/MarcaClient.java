@@ -2,35 +2,30 @@ package cl.duoc.appbelmonte.modeloVehiculo.client;
 
 import cl.duoc.appbelmonte.modeloVehiculo.exception.DatosInvalidosException;
 import cl.duoc.appbelmonte.modeloVehiculo.exception.ServicioNoDisponibleException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import feign.FeignException;
+import feign.RetryableException;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
-@Component
-public class MarcaClient {
+@FeignClient(name = "marca-servicio")
+public interface MarcaClient {
 
-	private final RestClient restClient;
+	@GetMapping("/api/marcas/{id}")
+	MarcaResponse obtenerRemoto(@PathVariable("id") Long id);
 
-	public MarcaClient(RestClient.Builder restClientBuilder,
-			@Value("${servicios.marca.url}") String urlMarca) {
-		this.restClient = restClientBuilder.baseUrl(urlMarca).build();
-	}
-
-	public MarcaResponse obtener(Long id) {
+	default MarcaResponse obtener(Long id) {
 		try {
-			MarcaResponse marca = restClient.get()
-					.uri("/api/marcas/{id}", id)
-					.retrieve()
-					.body(MarcaResponse.class);
+			MarcaResponse marca = obtenerRemoto(id);
 			if (marca == null) {
 				throw new ServicioNoDisponibleException("El servicio de marcas no está disponible");
 			}
 			return marca;
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("La marca indicada no existe");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
+			throw new ServicioNoDisponibleException("El servicio de marcas no está disponible");
+		} catch (FeignException excepcion) {
 			throw new ServicioNoDisponibleException("El servicio de marcas no está disponible");
 		}
 	}

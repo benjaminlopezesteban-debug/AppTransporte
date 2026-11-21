@@ -1,0 +1,78 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: usuario
+              uri: lb://usuario-servicio
+              predicates:
+                - Path=/api/auth/**,/api/usuarios/**
+            - id: rol
+              uri: lb://rol-servicio
+              predicates:
+                - Path=/api/roles/**
+            - id: marca
+              uri: lb://marca-servicio
+              predicates:
+                - Path=/api/marcas/**
+            - id: modelo-vehiculo
+              uri: lb://modelo-vehiculo-servicio
+              predicates:
+                - Path=/api/modelos/**
+            - id: vehiculo
+              uri: lb://vehiculo-servicio
+              predicates:
+                - Path=/api/vehiculos/**
+            - id: conductor
+              uri: lb://conductor-servicio
+              predicates:
+                - Path=/api/conductores/**
+            - id: region
+              uri: lb://region-servicio
+              predicates:
+                - Path=/api/regiones/**
+            - id: comuna
+              uri: lb://comuna-servicio
+              predicates:
+                - Path=/api/comunas/**
+            - id: direccion
+              uri: lb://direccion-servicio
+              predicates:
+                - Path=/api/direcciones/**
+            - id: pasajero
+              uri: lb://pasajero-servicio
+              predicates:
+                - Path=/api/pasajeros/**
+            - id: estado-solicitud
+              uri: lb://estado-solicitud-servicio
+              predicates:
+                - Path=/api/estados-solicitud/**
+            - id: solicitud
+              uri: lb://solicitud-servicio
+              predicates:
+                - Path=/api/solicitudes/**
+            - id: estado-viaje
+              uri: lb://estado-viaje-servicio
+              predicates:
+                - Path=/api/estados-viaje/**
+            - id: viaje
+              uri: lb://viaje-servicio
+              predicates:
+                - Path=/api/viajes/**
+            - id: historial
+              uri: lb://historial-servicio
+              predicates:
+                - Path=/api/historial/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true

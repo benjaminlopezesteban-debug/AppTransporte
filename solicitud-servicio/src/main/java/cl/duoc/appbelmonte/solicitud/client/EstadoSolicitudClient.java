@@ -3,36 +3,32 @@ package cl.duoc.appbelmonte.solicitud.client;
 import cl.duoc.appbelmonte.solicitud.dto.EstadoSolicitudResponse;
 import cl.duoc.appbelmonte.solicitud.exception.DatosInvalidosException;
 import cl.duoc.appbelmonte.solicitud.exception.ServicioNoDisponibleException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import feign.FeignException;
+import feign.RetryableException;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
-@Component
-public class EstadoSolicitudClient {
+@FeignClient(name = "estado-solicitud-servicio")
+public interface EstadoSolicitudClient {
 
-	private final RestClient restClient;
+	@GetMapping("/api/estados-solicitud/{id}")
+	EstadoSolicitudResponse obtenerRemoto(@PathVariable("id") Long id);
 
-	public EstadoSolicitudClient(RestClient.Builder restClientBuilder,
-			@Value("${servicios.estadoSolicitud.url}") String urlEstadoSolicitud) {
-		this.restClient = restClientBuilder.baseUrl(urlEstadoSolicitud).build();
-	}
-
-	public EstadoSolicitudResponse obtener(Long id) {
+	default EstadoSolicitudResponse obtener(Long id) {
 		try {
-			EstadoSolicitudResponse estado = restClient.get()
-					.uri("/api/estados-solicitud/{id}", id)
-					.retrieve()
-					.body(EstadoSolicitudResponse.class);
+			EstadoSolicitudResponse estado = obtenerRemoto(id);
 			if (estado == null) {
 				throw new ServicioNoDisponibleException(
 						"El servicio de estados de solicitud no está disponible");
 			}
 			return estado;
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("El estado de solicitud indicado no existe");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
+			throw new ServicioNoDisponibleException(
+					"El servicio de estados de solicitud no está disponible");
+		} catch (FeignException excepcion) {
 			throw new ServicioNoDisponibleException(
 					"El servicio de estados de solicitud no está disponible");
 		}

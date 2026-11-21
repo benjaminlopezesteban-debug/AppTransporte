@@ -7,7 +7,6 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,7 +41,6 @@ public class EstadoSolicitudController {
 	}
 
 	@PostMapping
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public ResponseEntity<EstadoSolicitudResponse> crear(
 			@Valid @RequestBody EstadoSolicitudRequest solicitud) {
 		return ResponseEntity.status(HttpStatus.CREATED)
@@ -50,7 +48,6 @@ public class EstadoSolicitudController {
 	}
 
 	@PutMapping("/{id}")
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public EstadoSolicitudResponse actualizar(@PathVariable Long id,
 			@Valid @RequestBody EstadoSolicitudRequest solicitud) {
 		return estadoSolicitudService.actualizar(id, solicitud);

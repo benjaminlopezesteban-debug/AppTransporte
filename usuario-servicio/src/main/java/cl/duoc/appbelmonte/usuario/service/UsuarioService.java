@@ -2,7 +2,6 @@ package cl.duoc.appbelmonte.usuario.service;
 
 import cl.duoc.appbelmonte.usuario.client.RolClient;
 import cl.duoc.appbelmonte.usuario.client.RolResponse;
-import cl.duoc.appbelmonte.usuario.config.JwtEmisor;
 import cl.duoc.appbelmonte.usuario.dto.LoginRequest;
 import cl.duoc.appbelmonte.usuario.dto.LoginResponse;
 import cl.duoc.appbelmonte.usuario.dto.RegistroRequest;
@@ -13,7 +12,6 @@ import cl.duoc.appbelmonte.usuario.exception.ReglaNegocioException;
 import cl.duoc.appbelmonte.usuario.model.Usuario;
 import cl.duoc.appbelmonte.usuario.repository.UsuarioRepository;
 import java.util.List;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,15 +21,10 @@ public class UsuarioService {
 	private static final List<Long> ROLES_REGISTRO_PUBLICO = List.of(2L, 3L);
 
 	private final UsuarioRepository usuarioRepository;
-	private final PasswordEncoder passwordEncoder;
-	private final JwtEmisor jwtEmisor;
 	private final RolClient rolClient;
 
-	public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder,
-			JwtEmisor jwtEmisor, RolClient rolClient) {
+	public UsuarioService(UsuarioRepository usuarioRepository, RolClient rolClient) {
 		this.usuarioRepository = usuarioRepository;
-		this.passwordEncoder = passwordEncoder;
-		this.jwtEmisor = jwtEmisor;
 		this.rolClient = rolClient;
 	}
 
@@ -50,7 +43,7 @@ public class UsuarioService {
 		Usuario usuario = new Usuario();
 		usuario.setNombre(solicitud.nombre());
 		usuario.setCorreo(solicitud.correo());
-		usuario.setContrasena(passwordEncoder.encode(solicitud.contrasena()));
+		usuario.setContrasena(solicitud.contrasena());
 		usuario.setTelefono(solicitud.telefono());
 		usuario.setRolId(rol.id());
 		usuario.setActivo(true);
@@ -63,18 +56,17 @@ public class UsuarioService {
 				.orElseThrow(() -> new CredencialesInvalidasException("Credenciales inválidas"));
 
 		if (!Boolean.TRUE.equals(usuario.getActivo())
-				|| !passwordEncoder.matches(solicitud.contrasena(), usuario.getContrasena())) {
+				|| !solicitud.contrasena().equals(usuario.getContrasena())) {
 			throw new CredencialesInvalidasException("Credenciales inválidas");
 		}
 
 		RolResponse rol = rolClient.obtener(usuario.getRolId());
-		String token = jwtEmisor.generarToken(usuario, rol.nombre());
-		return new LoginResponse(token, usuario.getId(), usuario.getRolId(), rol.nombre(),
+		return new LoginResponse(usuario.getId(), usuario.getRolId(), rol.nombre(),
 				usuario.getNombre());
 	}
 
 	@Transactional(readOnly = true)
-	public UsuarioResponse obtenerYo(Long usuarioId) {
+	public UsuarioResponse obtener(Long usuarioId) {
 		Usuario usuario = usuarioRepository.findById(usuarioId)
 				.orElseThrow(() -> new RecursoNoEncontradoException("El usuario no existe"));
 		RolResponse rol = rolClient.obtener(usuario.getRolId());

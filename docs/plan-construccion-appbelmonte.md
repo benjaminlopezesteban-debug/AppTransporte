@@ -9,6 +9,16 @@ Los patrones son documentación y copia desde `plantilla-servicio`. No se crea u
 módulo Maven compartido ni código común entre servicios: cada servicio mantiene
 su propio proyecto, puerto y base de datos.
 
+> **Nota histórica (2026-11-14):** las secciones sobre JWT, Spring Security,
+> headers de identidad, roles y `@PreAuthorize` quedaron superadas. La Fase 1
+> actual no usa autenticación ni autorización: solo el login valida credenciales
+> y la identidad se envía en el body o en la ruta. Ver `docs/Sumario_Final.md`.
+>
+> **Nota de actualización (2026-11-14):** la Fase 2 aplicó MySQL, Flyway, Eureka,
+> gateway, Feign y Docker Compose. Las referencias a H2, `RestClient`,
+> `RestClientConfig`, `servicios.*.url` y pruebas de contexto quedaron
+> reemplazadas por la configuración actual. Ver `docs/Sumario_Final.md`.
+
 ---
 
 ## 1. Convenciones comunes
@@ -23,8 +33,7 @@ cl.duoc.appbelmonte.<paquete>
 ├── repository
 ├── model
 ├── dto
-├── client        (solo si llama a otros servicios)
-├── config        (seguridad, JWT, RestClient y datos de prueba)
+├── client        (solo si llama a otros servicios, con Feign)
 └── exception
 ```
 
@@ -78,27 +87,28 @@ Formato:
 - Todos los servicios comparten `jwt.secret`.
 - `usuario-servicio` genera el token; los demás solo lo validan.
 
-### Clientes REST
+### Clientes Feign
 
-- Se usa `RestClient.Builder` de `RestClientConfig`, que reenvía el encabezado
-  `Authorization` de la petición actual.
+- Se usa `@FeignClient(name = "<servicio>")` con Eureka y
+  `spring-cloud-starter-loadbalancer`.
+- No se reenvía `Authorization` porque no existe token.
 - Un 404 del servicio llamado se traduce a `DatosInvalidosException` (400).
 - Un fallo de conexión o un 5xx se traduce a `ServicioNoDisponibleException`
   (503).
-- Las URL se configuran en `application.properties` con
-  `servicios.<nombre>.url`.
+- No se usan `RestClientConfig` ni `servicios.<nombre>.url`.
+- Timeouts: conexión `2000 ms`, lectura `5000 ms`.
 
 ### Datos de prueba
 
-- `CommandLineRunner` que solo carga si `repository.count() == 0`.
-- Se guardan en orden para obtener los ids fijos esperados.
+- Flyway carga `V2__datos_prueba_<tabla>.sql` con ids explícitos.
 - Todos los datos son ficticios.
-- Contraseñas de prueba cifradas con BCrypt.
+- Contraseñas de prueba en texto plano (`clave123`), sin autenticación real.
+- El esquema se crea con `V1__crear_tabla_<tabla>.sql`; Hibernate solo valida.
 
 ### Pruebas y Postman
 
-- Test de contexto en cada servicio.
 - Pruebas unitarias del service para reglas y errores principales.
+- No hay pruebas de contexto `@SpringBootTest` porque ya no existe H2.
 - Una carpeta de Postman por servicio con requests de éxito y error.
 
 ---
@@ -713,11 +723,11 @@ Contraseña de prueba: `clave123`.
 
 - Las pruebas pasan y el flujo completo funciona desde Postman.
 
-### 4.5 Fase 12 — gateway
+### 4.5 Fase 12 — gateway (aplicada)
 
-- Verificar que la librería de gateway sea compatible con Spring Boot 4.1.2.
-- Si es compatible, crear `gateway` en el puerto 8080 con rutas `/api/...`.
-- Si no, documentar que la app usará una URL base por servicio.
+- `gateway` en el puerto 8080 con `spring-cloud-starter-gateway-server-webflux`.
+- Rutas `/api/...` con `lb://` y Eureka.
+- Sin OpenFeign ni `spring-boot-starter-webmvc` en el gateway.
 
 **DoD**
 
@@ -749,10 +759,10 @@ Dentro de un lote, los servicios se pueden construir en paralelo.
 Un servicio se considera terminado cuando:
 
 1. Compila con `./mvnw -q -DskipTests package`.
-2. Arranca en su puerto con H2.
+2. Arranca en su puerto con MySQL y Flyway.
 3. Carga sus datos de prueba con los ids esperados.
-4. Responde las rutas con el token y rol correctos.
-5. Devuelve 400, 401, 403, 404, 409 o 503 según corresponda.
+4. Responde las rutas públicas sin token.
+5. Devuelve 400, 404, 409 o 503 según corresponda.
 6. Tiene al menos una prueba de sus reglas principales.
 7. Está incluido en la colección Postman.
 
@@ -764,7 +774,7 @@ Un servicio se considera terminado cuando:
 - [ ] Los datos de prueba tienen los ids esperados.
 - [ ] Las rutas públicas y protegidas responden como indica el contrato.
 - [ ] Los errores usan el formato `ErrorResponse`.
-- [ ] Las llamadas entre servicios reenvían el token.
+- [ ] Las llamadas entre servicios usan Feign y Eureka.
 - [ ] Un servicio apagado produce 503.
 - [ ] No hay relaciones JPA ni claves foráneas entre servicios.
 - [ ] No se agregaron librerías fuera de las permitidas.
@@ -777,5 +787,6 @@ Un servicio se considera terminado cuando:
   servicio se construye con su propia entidad y reglas.
 - `usuario-servicio` se reconstruye en la Fase 2 con `rolId` y cliente a
   `rol-servicio`; no se reutiliza el `enum Rol` de la plantilla.
-- No se implementa Eureka, mensajería, Docker ni bases de datos externas.
+- Eureka, Docker, MySQL y Flyway ya se implementaron en la Fase 2. Quedan fuera
+  mensajería y Config Server.
 - La app Android se construye después de validar estos servicios.

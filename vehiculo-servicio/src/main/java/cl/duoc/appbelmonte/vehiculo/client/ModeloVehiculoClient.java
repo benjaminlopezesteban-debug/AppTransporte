@@ -2,36 +2,31 @@ package cl.duoc.appbelmonte.vehiculo.client;
 
 import cl.duoc.appbelmonte.vehiculo.exception.DatosInvalidosException;
 import cl.duoc.appbelmonte.vehiculo.exception.ServicioNoDisponibleException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import feign.FeignException;
+import feign.RetryableException;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
-@Component
-public class ModeloVehiculoClient {
+@FeignClient(name = "modelo-vehiculo-servicio")
+public interface ModeloVehiculoClient {
 
-	private final RestClient restClient;
+	@GetMapping("/api/modelos/{id}")
+	ModeloVehiculoResponse obtenerRemoto(@PathVariable("id") Long id);
 
-	public ModeloVehiculoClient(RestClient.Builder restClientBuilder,
-			@Value("${servicios.modeloVehiculo.url}") String urlModelo) {
-		this.restClient = restClientBuilder.baseUrl(urlModelo).build();
-	}
-
-	public ModeloVehiculoResponse obtener(Long id) {
+	default ModeloVehiculoResponse obtener(Long id) {
 		try {
-			ModeloVehiculoResponse modelo = restClient.get()
-					.uri("/api/modelos/{id}", id)
-					.retrieve()
-					.body(ModeloVehiculoResponse.class);
+			ModeloVehiculoResponse modelo = obtenerRemoto(id);
 			if (modelo == null) {
 				throw new ServicioNoDisponibleException(
 						"El servicio de modelos no está disponible");
 			}
 			return modelo;
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("El modelo indicado no existe");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
+			throw new ServicioNoDisponibleException("El servicio de modelos no está disponible");
+		} catch (FeignException excepcion) {
 			throw new ServicioNoDisponibleException("El servicio de modelos no está disponible");
 		}
 	}

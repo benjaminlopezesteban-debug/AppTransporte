@@ -10,10 +10,6 @@ import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,68 +30,46 @@ public class ViajeController {
 	}
 
 	@PostMapping
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public ResponseEntity<ViajeResponse> asignar(
-			@AuthenticationPrincipal Long asignadoPorId,
 			@Valid @RequestBody AsignacionRequest solicitud) {
 		return ResponseEntity.status(HttpStatus.CREATED)
-				.body(viajeService.asignar(solicitud, asignadoPorId));
+				.body(viajeService.asignar(solicitud, solicitud.asignadoPorId()));
 	}
 
 	@PutMapping("/{id}/reasignar")
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public ViajeResponse reasignar(@PathVariable Long id,
-			@AuthenticationPrincipal Long asignadoPorId,
 			@Valid @RequestBody ReasignacionRequest solicitud) {
-		return viajeService.reasignar(id, solicitud, asignadoPorId);
+		return viajeService.reasignar(id, solicitud, solicitud.asignadoPorId());
 	}
 
 	@GetMapping
-	@PreAuthorize("hasRole('ADMINISTRADOR')")
 	public List<ViajeResponse> listar(@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
 		return viajeService.listar(fecha);
 	}
 
-	@GetMapping("/mis-viajes")
-	@PreAuthorize("hasRole('CONDUCTOR')")
-	public List<ViajeResponse> listarMios(@AuthenticationPrincipal Long conductorId) {
+	@GetMapping("/mis-viajes/{conductorId}")
+	public List<ViajeResponse> listarMios(@PathVariable Long conductorId) {
 		return viajeService.listarMios(conductorId);
 	}
 
-	@GetMapping("/mis-viajes/hoy")
-	@PreAuthorize("hasRole('CONDUCTOR')")
-	public List<ViajeResponse> listarHoy(@AuthenticationPrincipal Long conductorId) {
+	@GetMapping("/mis-viajes/{conductorId}/hoy")
+	public List<ViajeResponse> listarHoy(@PathVariable Long conductorId) {
 		return viajeService.listarHoy(conductorId);
 	}
 
 	@GetMapping("/{id}")
-	@PreAuthorize("hasAnyRole('ADMINISTRADOR', 'CONDUCTOR', 'SOLICITANTE')")
-	public ViajeResponse obtener(@PathVariable Long id,
-			@AuthenticationPrincipal Long usuarioId, Authentication authentication) {
-		return viajeService.obtener(id, usuarioId, rol(authentication));
+	public ViajeResponse obtener(@PathVariable Long id) {
+		return viajeService.obtener(id);
 	}
 
 	@PutMapping("/{id}/iniciar")
-	@PreAuthorize("hasRole('CONDUCTOR')")
-	public ViajeResponse iniciar(@PathVariable Long id,
-			@AuthenticationPrincipal Long conductorId) {
-		return viajeService.iniciar(id, conductorId);
+	public ViajeResponse iniciar(@PathVariable Long id) {
+		return viajeService.iniciar(id);
 	}
 
 	@PutMapping("/{id}/finalizar")
-	@PreAuthorize("hasRole('CONDUCTOR')")
-	public ViajeResponse finalizar(@PathVariable Long id,
-			@AuthenticationPrincipal Long conductorId) {
-		return viajeService.finalizar(id, conductorId);
-	}
-
-	private String rol(Authentication authentication) {
-		return authentication.getAuthorities().stream()
-				.map(GrantedAuthority::getAuthority)
-				.filter(autoridad -> autoridad.startsWith("ROLE_"))
-				.map(autoridad -> autoridad.substring("ROLE_".length()))
-				.findFirst()
-				.orElse("");
+	public ViajeResponse finalizar(@PathVariable Long id) {
+		return viajeService.finalizar(id);
 	}
 }

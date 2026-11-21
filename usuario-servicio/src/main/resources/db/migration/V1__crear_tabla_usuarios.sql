@@ -1,0 +1,11 @@
+CREATE TABLE usuarios (
+	id BIGINT NOT NULL AUTO_INCREMENT,
+	nombre VARCHAR(255) NOT NULL,
+	correo VARCHAR(255) NOT NULL,
+	contrasena VARCHAR(255) NOT NULL,
+	telefono VARCHAR(255),
+	activo BIT(1) NOT NULL DEFAULT b'1',
+	rol_id BIGINT NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uk_usuarios_correo UNIQUE (correo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

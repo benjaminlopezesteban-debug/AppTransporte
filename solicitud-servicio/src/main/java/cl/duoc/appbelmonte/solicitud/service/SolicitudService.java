@@ -15,7 +15,6 @@ import cl.duoc.appbelmonte.solicitud.repository.SolicitudTrasladoRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,12 +73,8 @@ public class SolicitudService {
 	}
 
 	@Transactional
-	public SolicitudResponse cancelar(Long id, Long solicitanteId) {
+	public SolicitudResponse cancelar(Long id) {
 		SolicitudTraslado solicitud = buscar(id);
-		if (!solicitud.getSolicitanteId().equals(solicitanteId)) {
-			throw new AccessDeniedException(
-					"No puede cancelar una solicitud que no le pertenece");
-		}
 		if (!ESTADO_PENDIENTE.equals(solicitud.getEstadoId())) {
 			throw new ReglaNegocioException("Solo se puede cancelar una solicitud pendiente");
 		}
@@ -111,12 +106,8 @@ public class SolicitudService {
 	}
 
 	@Transactional(readOnly = true)
-	public SolicitudResponse obtener(Long id, Long usuarioId, String rol) {
-		SolicitudTraslado solicitud = buscar(id);
-		if ("SOLICITANTE".equals(rol) && !solicitud.getSolicitanteId().equals(usuarioId)) {
-			throw new AccessDeniedException("No puede ver una solicitud que no le pertenece");
-		}
-		return aResponse(solicitud);
+	public SolicitudResponse obtener(Long id) {
+		return aResponse(buscar(id));
 	}
 
 	@Transactional

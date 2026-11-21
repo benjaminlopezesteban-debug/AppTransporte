@@ -34,7 +34,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class ViajeServiceTest {
@@ -71,7 +70,7 @@ class ViajeServiceTest {
 		when(estadoViajeClient.obtener(1L))
 				.thenReturn(new EstadoViajeResponse(1L, "ASIGNADO"));
 
-		ViajeResponse respuesta = viajeService.asignar(new AsignacionRequest(1L, 4L), 1L);
+		ViajeResponse respuesta = viajeService.asignar(new AsignacionRequest(1L, 4L, 1L), 1L);
 
 		assertThat(respuesta.id()).isEqualTo(10L);
 		assertThat(respuesta.estadoId()).isEqualTo(1L);
@@ -86,7 +85,7 @@ class ViajeServiceTest {
 	void asignarSolicitudNoPendienteLanzaReglaDeNegocio() {
 		when(solicitudClient.obtener(1L)).thenReturn(solicitud(2L, "ASIGNADA", 2L));
 
-		assertThatThrownBy(() -> viajeService.asignar(new AsignacionRequest(1L, 4L), 1L))
+		assertThatThrownBy(() -> viajeService.asignar(new AsignacionRequest(1L, 4L, 1L), 1L))
 				.isInstanceOf(ReglaNegocioException.class);
 		verify(viajeRepository, never()).save(any());
 		verify(solicitudClient, never()).asignar(any());
@@ -98,7 +97,7 @@ class ViajeServiceTest {
 		when(viajeRepository.existsBySolicitudId(1L)).thenReturn(false);
 		when(conductorClient.obtener(4L)).thenReturn(conductor(4L, false));
 
-		assertThatThrownBy(() -> viajeService.asignar(new AsignacionRequest(1L, 4L), 1L))
+		assertThatThrownBy(() -> viajeService.asignar(new AsignacionRequest(1L, 4L, 1L), 1L))
 				.isInstanceOf(ReglaNegocioException.class);
 		verify(viajeRepository, never()).save(any());
 	}
@@ -108,7 +107,7 @@ class ViajeServiceTest {
 		when(solicitudClient.obtener(1L)).thenReturn(solicitud(1L, "PENDIENTE", 2L));
 		when(viajeRepository.existsBySolicitudId(1L)).thenReturn(true);
 
-		assertThatThrownBy(() -> viajeService.asignar(new AsignacionRequest(1L, 4L), 1L))
+		assertThatThrownBy(() -> viajeService.asignar(new AsignacionRequest(1L, 4L, 1L), 1L))
 				.isInstanceOf(ReglaNegocioException.class);
 		verify(viajeRepository, never()).save(any());
 	}
@@ -123,7 +122,7 @@ class ViajeServiceTest {
 		when(solicitudClient.asignar(1L))
 				.thenThrow(new ServicioNoDisponibleException("solicitud caida"));
 
-		assertThatThrownBy(() -> viajeService.asignar(new AsignacionRequest(1L, 4L), 1L))
+		assertThatThrownBy(() -> viajeService.asignar(new AsignacionRequest(1L, 4L, 1L), 1L))
 				.isInstanceOf(ServicioNoDisponibleException.class);
 		verify(viajeRepository).save(any(Viaje.class));
 	}
@@ -133,7 +132,7 @@ class ViajeServiceTest {
 		when(viajeRepository.findById(10L)).thenReturn(Optional.of(viaje(10L, 4L, 2L)));
 
 		assertThatThrownBy(() -> viajeService.reasignar(10L,
-				new ReasignacionRequest(5L), 1L))
+				new ReasignacionRequest(5L, 1L), 1L))
 				.isInstanceOf(ReglaNegocioException.class);
 		verify(viajeRepository, never()).save(any());
 	}
@@ -149,20 +148,11 @@ class ViajeServiceTest {
 				.thenReturn(new EstadoViajeResponse(1L, "ASIGNADO"));
 
 		ViajeResponse respuesta = viajeService.reasignar(10L,
-				new ReasignacionRequest(5L), 1L);
+				new ReasignacionRequest(5L, 1L), 1L);
 
 		assertThat(respuesta.conductorId()).isEqualTo(5L);
 		assertThat(respuesta.asignadoPorId()).isEqualTo(1L);
 		verify(historialClient).registrar(any());
-	}
-
-	@Test
-	void iniciarSoloLoPuedeHacerElConductorDelViaje() {
-		when(viajeRepository.findById(10L)).thenReturn(Optional.of(viaje(10L, 4L, 1L)));
-
-		assertThatThrownBy(() -> viajeService.iniciar(10L, 5L))
-				.isInstanceOf(AccessDeniedException.class);
-		verify(viajeRepository, never()).save(any());
 	}
 
 	@Test
@@ -174,7 +164,7 @@ class ViajeServiceTest {
 		when(estadoViajeClient.obtener(2L))
 				.thenReturn(new EstadoViajeResponse(2L, "EN_CURSO"));
 
-		ViajeResponse respuesta = viajeService.iniciar(10L, 4L);
+		ViajeResponse respuesta = viajeService.iniciar(10L);
 
 		assertThat(respuesta.estadoId()).isEqualTo(2L);
 		assertThat(respuesta.estadoNombre()).isEqualTo("EN_CURSO");
@@ -186,7 +176,7 @@ class ViajeServiceTest {
 	void finalizarSoloPermiteViajeEnCurso() {
 		when(viajeRepository.findById(10L)).thenReturn(Optional.of(viaje(10L, 4L, 1L)));
 
-		assertThatThrownBy(() -> viajeService.finalizar(10L, 4L))
+		assertThatThrownBy(() -> viajeService.finalizar(10L))
 				.isInstanceOf(ReglaNegocioException.class);
 		verify(viajeRepository, never()).save(any());
 	}
@@ -200,7 +190,7 @@ class ViajeServiceTest {
 		when(estadoViajeClient.obtener(3L))
 				.thenReturn(new EstadoViajeResponse(3L, "FINALIZADO"));
 
-		ViajeResponse respuesta = viajeService.finalizar(10L, 4L);
+		ViajeResponse respuesta = viajeService.finalizar(10L);
 
 		assertThat(respuesta.estadoId()).isEqualTo(3L);
 		assertThat(respuesta.estadoNombre()).isEqualTo("FINALIZADO");
@@ -219,26 +209,9 @@ class ViajeServiceTest {
 		doThrow(new ServicioNoDisponibleException("historial caido"))
 				.when(historialClient).registrar(any());
 
-		ViajeResponse respuesta = viajeService.iniciar(10L, 4L);
+		ViajeResponse respuesta = viajeService.iniciar(10L);
 
 		assertThat(respuesta.estadoId()).isEqualTo(2L);
-	}
-
-	@Test
-	void obtenerViajeDeOtroConductorLanzaAccesoDenegado() {
-		when(viajeRepository.findById(10L)).thenReturn(Optional.of(viaje(10L, 4L, 1L)));
-
-		assertThatThrownBy(() -> viajeService.obtener(10L, 5L, "CONDUCTOR"))
-				.isInstanceOf(AccessDeniedException.class);
-	}
-
-	@Test
-	void obtenerViajeDeOtroSolicitanteLanzaAccesoDenegado() {
-		when(viajeRepository.findById(10L)).thenReturn(Optional.of(viaje(10L, 4L, 1L)));
-		when(solicitudClient.obtener(1L)).thenReturn(solicitud(1L, "PENDIENTE", 2L));
-
-		assertThatThrownBy(() -> viajeService.obtener(10L, 3L, "SOLICITANTE"))
-				.isInstanceOf(AccessDeniedException.class);
 	}
 
 	@Test

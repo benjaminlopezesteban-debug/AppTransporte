@@ -4,89 +4,78 @@ import cl.duoc.appbelmonte.viaje.dto.SolicitudResponse;
 import cl.duoc.appbelmonte.viaje.exception.DatosInvalidosException;
 import cl.duoc.appbelmonte.viaje.exception.ReglaNegocioException;
 import cl.duoc.appbelmonte.viaje.exception.ServicioNoDisponibleException;
+import feign.FeignException;
+import feign.RetryableException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
-@Component
-public class SolicitudClient {
+@FeignClient(name = "solicitud-servicio")
+public interface SolicitudClient {
 
-	private final RestClient restClient;
+	@GetMapping("/api/solicitudes/{id}")
+	SolicitudResponse obtenerRemoto(@PathVariable("id") Long id);
 
-	public SolicitudClient(RestClient.Builder restClientBuilder,
-			@Value("${servicios.solicitud.url}") String urlSolicitud) {
-		this.restClient = restClientBuilder.baseUrl(urlSolicitud).build();
-	}
+	@GetMapping("/api/solicitudes")
+	SolicitudResponse[] listarPorIdsRemoto(@RequestParam("ids") String ids);
 
-	public SolicitudResponse obtener(Long id) {
+	@PutMapping("/api/solicitudes/{id}/asignar")
+	SolicitudResponse asignarRemoto(@PathVariable("id") Long id);
+
+	default SolicitudResponse obtener(Long id) {
 		try {
-			SolicitudResponse solicitud = restClient.get()
-					.uri("/api/solicitudes/{id}", id)
-					.retrieve()
-					.body(SolicitudResponse.class);
+			SolicitudResponse solicitud = obtenerRemoto(id);
 			if (solicitud == null) {
 				throw new ServicioNoDisponibleException(
 						"El servicio de solicitudes no está disponible");
 			}
 			return solicitud;
-		} catch (HttpClientErrorException.Forbidden excepcion) {
-			throw new AccessDeniedException(
-					"No tiene permisos para consultar la solicitud");
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("La solicitud indicada no existe");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
+			throw new ServicioNoDisponibleException(
+					"El servicio de solicitudes no está disponible");
+		} catch (FeignException excepcion) {
 			throw new ServicioNoDisponibleException(
 					"El servicio de solicitudes no está disponible");
 		}
 	}
 
-	public List<SolicitudResponse> listarPorIds(List<Long> ids) {
+	default List<SolicitudResponse> listarPorIds(List<Long> ids) {
 		String parametroIds = ids.stream().map(String::valueOf).collect(Collectors.joining(","));
 		try {
-			SolicitudResponse[] solicitudes = restClient.get()
-					.uri(constructor -> constructor.path("/api/solicitudes")
-							.queryParam("ids", parametroIds)
-							.build())
-					.retrieve()
-					.body(SolicitudResponse[].class);
+			SolicitudResponse[] solicitudes = listarPorIdsRemoto(parametroIds);
 			return solicitudes == null ? List.of() : Arrays.asList(solicitudes);
-		} catch (HttpClientErrorException excepcion) {
-			throw new DatosInvalidosException("No se pudieron consultar las solicitudes");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
 			throw new ServicioNoDisponibleException(
 					"El servicio de solicitudes no está disponible");
+		} catch (FeignException excepcion) {
+			throw new DatosInvalidosException("No se pudieron consultar las solicitudes");
 		}
 	}
 
-	public SolicitudResponse asignar(Long id) {
+	default SolicitudResponse asignar(Long id) {
 		try {
-			SolicitudResponse solicitud = restClient.put()
-					.uri("/api/solicitudes/{id}/asignar", id)
-					.retrieve()
-					.body(SolicitudResponse.class);
+			SolicitudResponse solicitud = asignarRemoto(id);
 			if (solicitud == null) {
 				throw new ServicioNoDisponibleException(
 						"El servicio de solicitudes no está disponible");
 			}
 			return solicitud;
-		} catch (HttpClientErrorException.Forbidden excepcion) {
-			throw new AccessDeniedException(
-					"No tiene permisos para asignar la solicitud");
-		} catch (HttpClientErrorException.Conflict excepcion) {
+		} catch (FeignException.Conflict excepcion) {
 			throw new ReglaNegocioException("La solicitud ya no está pendiente");
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("La solicitud indicada no existe");
-		} catch (HttpClientErrorException excepcion) {
-			throw new DatosInvalidosException("No se pudo asignar la solicitud");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
 			throw new ServicioNoDisponibleException(
 					"El servicio de solicitudes no está disponible");
+		} catch (FeignException excepcion) {
+			throw new DatosInvalidosException("No se pudo asignar la solicitud");
 		}
 	}
 }

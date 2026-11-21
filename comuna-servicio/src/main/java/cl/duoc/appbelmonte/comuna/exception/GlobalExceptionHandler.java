@@ -3,7 +3,6 @@ package cl.duoc.appbelmonte.comuna.exception;
 import cl.duoc.appbelmonte.comuna.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -52,12 +51,6 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
 	}
 
-	@ExceptionHandler(AccessDeniedException.class)
-	public ResponseEntity<ErrorResponse> manejarAccesoDenegado(AccessDeniedException excepcion) {
-		ErrorResponse error = ErrorResponse.de(HttpStatus.FORBIDDEN,
-				"No tiene permisos para realizar esta acción");
-		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
-	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ErrorResponse> manejarValidacion(MethodArgumentNotValidException excepcion) {

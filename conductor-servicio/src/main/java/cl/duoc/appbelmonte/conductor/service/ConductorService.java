@@ -38,11 +38,6 @@ public class ConductorService {
 		return aResponse(conductorRepository.save(conductor));
 	}
 
-	@Transactional(readOnly = true)
-	public ConductorResponse obtenerYo(Long conductorId) {
-		return aResponse(buscar(conductorId));
-	}
-
 	@Transactional
 	public ConductorResponse cambiarDisponibilidad(Long conductorId,
 			Boolean disponible) {

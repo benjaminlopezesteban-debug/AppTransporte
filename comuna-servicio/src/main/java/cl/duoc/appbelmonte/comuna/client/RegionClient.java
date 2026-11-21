@@ -2,35 +2,30 @@ package cl.duoc.appbelmonte.comuna.client;
 
 import cl.duoc.appbelmonte.comuna.exception.DatosInvalidosException;
 import cl.duoc.appbelmonte.comuna.exception.ServicioNoDisponibleException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import feign.FeignException;
+import feign.RetryableException;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
-@Component
-public class RegionClient {
+@FeignClient(name = "region-servicio")
+public interface RegionClient {
 
-	private final RestClient restClient;
+	@GetMapping("/api/regiones/{id}")
+	RegionResponse obtenerRemoto(@PathVariable("id") Long id);
 
-	public RegionClient(RestClient.Builder restClientBuilder,
-			@Value("${servicios.region.url}") String urlRegion) {
-		this.restClient = restClientBuilder.baseUrl(urlRegion).build();
-	}
-
-	public RegionResponse obtener(Long id) {
+	default RegionResponse obtener(Long id) {
 		try {
-			RegionResponse region = restClient.get()
-					.uri("/api/regiones/{id}", id)
-					.retrieve()
-					.body(RegionResponse.class);
+			RegionResponse region = obtenerRemoto(id);
 			if (region == null) {
 				throw new ServicioNoDisponibleException("El servicio de regiones no está disponible");
 			}
 			return region;
-		} catch (HttpClientErrorException.NotFound excepcion) {
+		} catch (FeignException.NotFound excepcion) {
 			throw new DatosInvalidosException("La región indicada no existe");
-		} catch (RestClientException excepcion) {
+		} catch (RetryableException excepcion) {
+			throw new ServicioNoDisponibleException("El servicio de regiones no está disponible");
+		} catch (FeignException excepcion) {
 			throw new ServicioNoDisponibleException("El servicio de regiones no está disponible");
 		}
 	}
